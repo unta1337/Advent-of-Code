@@ -1,0 +1,18 @@
+#!/bin/bash
+
+if [ $# -ne 2 ]; then
+    echo "Usage:"
+    echo "    genday <language> <day>"
+
+    exit 1
+fi
+
+base_dir=$(dirname $0)
+language=$1
+day=$2
+
+dir=$(printf day%02d $day)
+
+mkdir -p $dir
+cp -r $base_dir/base/$1/* ./$dir
+touch $dir/sample.txt $dir/input.txt
