@@ -4,10 +4,15 @@
 #include <string.h>
 #include <errno.h>
 
+#define MIN(x, y) ((x) < (y) ? (x) : (y))
+#define MAX(x, y) ((x) > (y) ? (x) : (y))
+
 #define LEN_LINES 800
 #define LEN_LINE 80
 
-const size_t NONE = 1 << 30;
+const size_t NONE = 1LLU << 30;
+const size_t ACCEPTED = 1LLU << 31;
+const size_t REJECTED = 1LLU << 32;
 
 bool print = false;
 
@@ -39,6 +44,12 @@ size_t reduce_criteria(elem_t* elem) {
 }
 
 size_t find_rule(elem_t* rules, size_t rule_count, char* name) {
+    if (*name == 'A') {
+        return ACCEPTED;
+    } else if (*name == 'R') {
+        return REJECTED;
+    }
+
     for (size_t i = 0; i < rule_count; i++) {
         if (strcmp(rules[i].name, name) == 0) {
             return i;
@@ -92,6 +103,115 @@ bool is_accepted(elem_t* item, elem_t* rules, size_t rule_count, size_t begin) {
     }
 
     return *next == 'A';
+}
+
+size_t lookup_lower[128];
+size_t lookup_upper[128];
+
+void init_lookup() {
+    for (size_t i = 0; i < 128; i++) {
+        lookup_lower[i] = 1;
+        lookup_upper[i] = 4000;
+    }
+}
+
+size_t dfs(size_t rule_index, size_t depth, elem_t* rules, size_t rule_count) {
+    if (rule_index == ACCEPTED || rule_index == REJECTED) {
+        if (rule_index == ACCEPTED) {
+            if (lookup_upper['x'] < lookup_lower['x']) {
+                return 0;
+            } else if (lookup_upper['m'] < lookup_lower['m']) {
+                return 0;
+            } else if (lookup_upper['a'] < lookup_lower['a']) {
+                return 0;
+            } else if (lookup_upper['s'] < lookup_lower['s']) {
+                return 0;
+            }
+
+            return (lookup_upper['x'] - lookup_lower['x'] + 1)
+                   * (lookup_upper['m'] - lookup_lower['m'] + 1)
+                   * (lookup_upper['a'] - lookup_lower['a'] + 1)
+                   * (lookup_upper['s'] - lookup_lower['s'] + 1);
+        }
+
+        return 0;
+    }
+
+    elem_t* rule = &rules[rule_index];
+
+    size_t ret = 0;
+
+    for (size_t i = 0; i < rule->criteria_count; i++) {
+        criteria_t* crit = &rule->criteria[i];
+
+        size_t backup_lower[128] = { 0, };
+        size_t backup_upper[128] = { 0, };
+
+        size_t missed_lower[128] = { 0, };
+        size_t missed_upper[128] = { 0, };
+
+        missed_lower['x'] = lookup_lower['x'];
+        missed_lower['m'] = lookup_lower['m'];
+        missed_lower['a'] = lookup_lower['a'];
+        missed_lower['s'] = lookup_lower['s'];
+
+        missed_upper['x'] = lookup_upper['x'];
+        missed_upper['m'] = lookup_upper['m'];
+        missed_upper['a'] = lookup_upper['a'];
+        missed_upper['s'] = lookup_upper['s'];
+
+        backup_lower['x'] = lookup_lower['x'];
+        backup_lower['m'] = lookup_lower['m'];
+        backup_lower['a'] = lookup_lower['a'];
+        backup_lower['s'] = lookup_lower['s'];
+
+        backup_upper['x'] = lookup_upper['x'];
+        backup_upper['m'] = lookup_upper['m'];
+        backup_upper['a'] = lookup_upper['a'];
+        backup_upper['s'] = lookup_upper['s'];
+
+        if (crit->kind != '\0' && crit->kind != 'A' && crit->kind != 'R') {
+            if (crit->less) {
+                lookup_upper[crit->kind] = MIN(lookup_upper[crit->kind], crit->value - 1);
+                missed_lower[crit->kind] = MAX(missed_lower[crit->kind], crit->value);
+            } else {
+                lookup_lower[crit->kind] = MAX(lookup_lower[crit->kind], crit->value + 1);
+                missed_upper[crit->kind] = MIN(missed_upper[crit->kind], crit->value);
+            }
+        }
+
+        size_t index = find_rule(rules, rule_count, crit->next);
+        ret += dfs(index, depth + 1, rules, rule_count);
+
+        lookup_lower['x'] = backup_lower['x'];
+        lookup_lower['m'] = backup_lower['m'];
+        lookup_lower['a'] = backup_lower['a'];
+        lookup_lower['s'] = backup_lower['s'];
+
+        lookup_upper['x'] = backup_upper['x'];
+        lookup_upper['m'] = backup_upper['m'];
+        lookup_upper['a'] = backup_upper['a'];
+        lookup_upper['s'] = backup_upper['s'];
+
+        if (missed_lower['x'] <= missed_upper['x']) {
+            lookup_lower['x'] = missed_lower['x'];
+            lookup_upper['x'] = missed_upper['x'];
+        }
+        if (missed_lower['m'] <= missed_upper['m']) {
+            lookup_lower['m'] = missed_lower['m'];
+            lookup_upper['m'] = missed_upper['m'];
+        }
+        if (missed_lower['a'] <= missed_upper['a']) {
+            lookup_lower['a'] = missed_lower['a'];
+            lookup_upper['a'] = missed_upper['a'];
+        }
+        if (missed_lower['s'] <= missed_upper['s']) {
+            lookup_lower['s'] = missed_lower['s'];
+            lookup_upper['s'] = missed_upper['s'];
+        }
+    }
+
+    return ret;
 }
 
 size_t part_one(string_t* lines, size_t len_lines) {
@@ -168,65 +288,101 @@ size_t part_one(string_t* lines, size_t len_lines) {
         }
     }
 
-    if (print) {
-        for (size_t i = 0; i < rule_count; i++) {
-            elem_t* curr = &rules[i];
-
-            printf("%s{", curr->name);
-
-            for (size_t j = 0; j < curr->criteria_count; j++) {
-                criteria_t* curr_crit = &curr->criteria[j];
-
-                if (curr_crit->kind != '\0') {
-                    printf("%c%c%zu:", curr_crit->kind, curr_crit->less ? '<' : '>', curr_crit->value);
-                }
-                printf("%s%s", curr_crit->next, j < curr->criteria_count - 1 ? "," : "");
-            }
-            printf("}\n");
-        }
-
-        printf("\n");
-    }
-
     size_t begin_index = find_rule(rules, rule_count, "in");
     size_t answer = 0;
 
     for (size_t i = 0; i < item_count; i++) {
         elem_t* curr = &items[i];
 
-        if (print) {
-            printf("{");
-
-            for (size_t j = 0; j < curr->criteria_count; j++) {
-                criteria_t* curr_crit = &curr->criteria[j];
-
-                printf("%c=%zu%s", curr_crit->kind, curr_crit->value, j < curr->criteria_count - 1 ? "," : "");
-            }
-        }
 
         bool passed = is_accepted(curr, rules, rule_count, begin_index);
         size_t reduced = reduce_criteria(curr);
 
         answer += passed * reduced;
-
-        if (print) {
-            printf("} [%d, %zu]\n", passed, reduced);
-        }
-    }
-
-    if (print) {
-        printf("\n");
     }
 
     return answer;
 }
 
 size_t part_two(string_t* lines, size_t len_lines) {
+    elem_t rules[LEN_LINES] = { 0, };
+    size_t rule_count = 0;
+
+    elem_t items[LEN_LINES] = { 0, };
+    size_t item_count = 0;
+
+    bool parse_elem = true;
+
     for (size_t i = 0; i < len_lines; i++) {
-        printf("%4zu: \"%s\" (%zu)\n", i, lines[i].str, lines[i].len);
+        if (lines[i].len == 0) {
+            parse_elem = false;
+        } else if (parse_elem) {
+            char* buf = lines[i].str;
+
+            elem_t* curr = &rules[rule_count++];
+            lines[i].str[--lines[i].len] = '\0';
+
+            char* token = strtok(buf, "{");
+            buf += strlen(token) + 1;
+            strcpy(curr->name, token);
+
+            while ((token = strtok(buf, ",")) != NULL) {
+                criteria_t* curr_crit = &curr->criteria[curr->criteria_count++];
+
+                char* token_buf = buf;
+                buf += strlen(token) + 1;
+
+                if (strstr(token_buf, ":") != NULL) {
+                    token_buf = strtok(token_buf, ":");
+
+                    curr_crit->kind = token_buf[0];
+                    curr_crit->less = token_buf[1] == '<' ? true : false;
+                    token_buf += 2;
+                    curr_crit->value = strtoll(token_buf, NULL, 10);
+
+                    token_buf += strlen(token_buf) + 1;
+                }
+
+                strcpy(curr_crit->next, token_buf);
+            }
+        } else {
+            lines[i].str++;
+            lines[i].len--;
+            lines[i].str[--lines[i].len] = '\0';
+
+            elem_t* curr = &items[item_count++];
+
+            char* token = strtok(lines[i].str, "=");
+            curr->criteria[curr->criteria_count].kind = *token;
+            token = strtok(NULL, ",");
+            curr->criteria[curr->criteria_count].value = strtoll(token, NULL, 10);
+            curr->criteria_count++;
+
+            token = strtok(NULL, "=");
+            curr->criteria[curr->criteria_count].kind = *token;
+            token = strtok(NULL, ",");
+            curr->criteria[curr->criteria_count].value = strtoll(token, NULL, 10);
+            curr->criteria_count++;
+
+            token = strtok(NULL, "=");
+            curr->criteria[curr->criteria_count].kind = *token;
+            token = strtok(NULL, ",");
+            curr->criteria[curr->criteria_count].value = strtoll(token, NULL, 10);
+            curr->criteria_count++;
+
+            token = strtok(NULL, "=");
+            curr->criteria[curr->criteria_count].kind = *token;
+            token = strtok(NULL, ",");
+            curr->criteria[curr->criteria_count].value = strtoll(token, NULL, 10);
+            curr->criteria_count++;
+        }
     }
 
-    return 0;
+    size_t begin_index = find_rule(rules, rule_count, "in");
+
+    size_t answer = dfs(begin_index, 0, rules, rule_count);
+
+    return answer;
 }
 
 void solve(const char* input_path) {
@@ -265,6 +421,8 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Error: input file path not provided.\n");
         return 1;
     }
+
+    init_lookup();
 
     solve(argv[1]);
 
