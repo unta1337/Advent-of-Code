@@ -86,6 +86,17 @@ module_frame_t queue_front(module_queue_t* q) {
     return q->q[q->q_begin];
 }
 
+size_t queue_count(module_queue_t* q) {
+    size_t x = q->q_begin;
+    size_t y = q->q_end;
+
+    if (x > y) {
+        y += LEN_LINES;
+    }
+
+    return y - x;
+}
+
 module_t modules[LEN_LINES] = { 0, };
 size_t module_count = 0;
 
@@ -182,48 +193,71 @@ void update_inputs(module_t* module, char* name, pulse_t signal) {
     }
 }
 
-void send_signal(module_t* module, pulse_t signal) {
-    broadercaster_t* broad = &module->module.broadercaster;
-    flip_flop_t* flip = &module->module.flip_flop;
-    conjunction_t* con = &module->module.conjunction;
-    module_t* next = NULL;
-    bool send_low = true;
+void send_signal(module_t* begin, pulse_t signal, size_t* num_low, size_t* num_high, bool count_only_end) {
+    module_queue_t q = { 0, };
+    queue_push(&q, (module_frame_t){ .from = "broadercaster", .module = begin, .signal = signal });
 
-    switch (module->type) {
-    case BROADCASTER:
-        for (size_t i = 0; i < broad->next_count; i++) {
-            printf("broad -> -%d- > %s\n", signal, broad->next[i]);
-            next = find_module(broad->next[i]);
-            update_inputs(next, broad->name, signal);
-            send_signal(next, signal);
+    while (queue_count(&q) > 0) {
+        module_frame_t module_frame = queue_front(&q);
+        queue_pop(&q);
+
+        char* prev_name = module_frame.from;
+        module_t* module = module_frame.module;
+        pulse_t signal = module_frame.signal;
+
+        if (!count_only_end) {
+            *num_low += signal == LOW;
+            *num_high += signal == HIGH;
         }
-        break;
-    case FLIP_FLOP:
-        if (signal == LOW) {
+
+        if (module == NULL) {
+            if (count_only_end) {
+                *num_low += signal == LOW;
+                *num_high += signal == HIGH;
+            }
+            continue;
+        }
+
+        broadercaster_t* broad = &module->module.broadercaster;
+        flip_flop_t* flip = &module->module.flip_flop;
+        conjunction_t* con = &module->module.conjunction;
+        module_t* next = NULL;
+        bool send_low = true;
+
+        switch (module->type) {
+        case BROADCASTER:
+            for (size_t i = 0; i < broad->next_count; i++) {
+                next = find_module(broad->next[i]);
+                queue_push(&q, (module_frame_t){ .from = broad->name, .module = next, .signal = signal });
+            }
+            break;
+        case FLIP_FLOP:
+            if (signal == HIGH) {
+                break;
+            }
+
             flip->is_on = !flip->is_on;
             signal = flip->is_on ? HIGH : LOW;
-        }
 
-        for (size_t i = 0; i < flip->next_count; i++) {
-            printf("flip -> -%d- > %s\n", signal, flip->next[i]);
-            next = find_module(flip->next[i]);
-            update_inputs(next, flip->name, signal);
-            send_signal(next, signal);
-        }
-        break;
-    case CONJUNCTION:
-        for (size_t i = 0; i < con->input_count; i++) {
-            send_low &= con->last_pulse[i] == HIGH;
-        }
-        signal = send_low ? LOW : HIGH;
+            for (size_t i = 0; i < flip->next_count; i++) {
+                next = find_module(flip->next[i]);
+                queue_push(&q, (module_frame_t){ .from = flip->name, .module = next, .signal = signal });
+            }
+            break;
+        case CONJUNCTION:
+            update_inputs(module, prev_name, signal);
 
-        for (size_t i = 0; i < con->next_count; i++) {
-            printf("con -> -%d- > %s\n", signal, con->next[i]);
-            next = find_module(con->next[i]);
-            update_inputs(next, con->name, signal);
-            send_signal(next, signal);
+            for (size_t i = 0; i < con->input_count; i++) {
+                send_low &= con->last_pulse[i] == HIGH;
+            }
+            signal = send_low ? LOW : HIGH;
+
+            for (size_t i = 0; i < con->next_count; i++) {
+                next = find_module(con->next[i]);
+                queue_push(&q, (module_frame_t){ .from = con->name, .module = next, .signal = signal });
+            }
+            break;
         }
-        break;
     }
 }
 
@@ -304,71 +338,116 @@ size_t part_one(string_t* lines, size_t len_lines) {
         }
     }
 
-    // for (size_t i = 0; i < module_count; i++) {
-    //     print_module(&modules[i], 0);
-    // }
-
-    // return 0;
-
     module_t* begin = find_module("broadcaster");
+    size_t num_low = 0;
+    size_t num_high = 0;
 
-    module_queue_t q = { 0, };
-    queue_push(&q, (module_frame_t){ .from = "broadercaster", .module = begin, .signal = LOW });
+    for (size_t i = 0; i < 1000; i++) {
+        send_signal(begin, LOW, &num_low, &num_high, false);
+    }
 
-    for (size_t i = 0; i < 10; i++) {
-        module_frame_t module_frame = queue_front(&q);
-        queue_pop(&q);
+    size_t answer = num_low * num_high;
 
-        module_t* module = module_frame.module;
-        pulse_t signal = module_frame.signal;
+    return answer;
+}
 
-        broadercaster_t* broad = &module->module.broadercaster;
-        flip_flop_t* flip = &module->module.flip_flop;
-        conjunction_t* con = &module->module.conjunction;
-        module_t* next = NULL;
-        bool send_low = true;
+size_t part_two(string_t* lines, size_t len_lines) {
+    for (size_t i = 0; i < len_lines; i++) {
+        module_t* curr = &modules[module_count++];
 
-        switch (module->type) {
+        char* name = strtok(lines[i].str, " ");
+        curr->type = module_type_lookup[*name];
+        char* token = strtok(NULL, " ");
+        token += strlen(token) + 1;
+
+        broadercaster_t* broad = &curr->module.broadercaster;
+        flip_flop_t* flip = &curr->module.flip_flop;
+        conjunction_t* con = &curr->module.conjunction;
+
+        switch (curr->type) {
         case BROADCASTER:
-            for (size_t i = 0; i < broad->next_count; i++) {
-                printf("broad -> -%d- > %s\n", signal, broad->next[i]);
-                next = find_module(broad->next[i]);
-                queue_push(&q, (module_frame_t){ .from = broad->name, .module = next, .signal = signal });
+            broad->name = name;
+            while ((token = strtok(NULL, ",")) != NULL) {
+                broad->next[broad->next_count++] = token + (*token == ' ');
             }
             break;
         case FLIP_FLOP:
-            if (signal == LOW) {
-                flip->is_on = !flip->is_on;
-                signal = flip->is_on ? HIGH : LOW;
-            }
-
-            for (size_t i = 0; i < flip->next_count; i++) {
-                printf("flip -> -%d- > %s\n", signal, flip->next[i]);
-                next = find_module(flip->next[i]);
-                queue_push(&q, (module_frame_t){ .from = flip->name, .module = next, .signal = signal });
+            flip->name = name + 1;
+            while ((token = strtok(NULL, ",")) != NULL) {
+                flip->next[flip->next_count++] = token + (*token == ' ');
             }
             break;
         case CONJUNCTION:
-            for (size_t i = 0; i < con->input_count; i++) {
-                send_low &= con->last_pulse[i] == HIGH;
-            }
-            signal = send_low ? LOW : HIGH;
-
-            for (size_t i = 0; i < con->next_count; i++) {
-                printf("con -> -%d- > %s\n", signal, con->next[i]);
-                next = find_module(con->next[i]);
-                queue_push(&q, (module_frame_t){ .from = con->name, module = next, .signal = signal });
+            con->name = name + 1;
+            while ((token = strtok(NULL, ",")) != NULL) {
+                con->next[con->next_count++] = token + (*token == ' ');
             }
             break;
         }
     }
 
-    return 0;
-}
+    for (size_t i = 0; i < module_count; i++) {
+        module_t* curr = &modules[i];
+        module_t* next = NULL;
 
-size_t part_two(string_t* lines, size_t len_lines) {
-    for (size_t i = 0; i < len_lines; i++) {
-        printf("%4zu: \"%s\" (%zu)\n", i, lines[i].str, lines[i].len);
+        broadercaster_t* broad = &curr->module.broadercaster;
+        flip_flop_t* flip = &curr->module.flip_flop;
+        conjunction_t* con = &curr->module.conjunction;
+
+        switch (curr->type) {
+        case BROADCASTER:
+            for (size_t i = 0; i < broad->next_count; i++) {
+                next = find_module(broad->next[i]);
+                if (next != NULL && next->type == CONJUNCTION) {
+                    size_t* count = &next->module.conjunction.input_count;
+                    next->module.conjunction.inputs[*count] = broad->name;
+                    *count += 1;
+                }
+            }
+            break;
+        case FLIP_FLOP:
+            for (size_t i = 0; i < flip->next_count; i++) {
+                next = find_module(flip->next[i]);
+                if (next != NULL && next->type == CONJUNCTION) {
+                    size_t* count = &next->module.conjunction.input_count;
+                    next->module.conjunction.inputs[*count] = flip->name;
+                    *count += 1;
+                }
+            }
+            break;
+        case CONJUNCTION:
+            for (size_t i = 0; i < con->next_count; i++) {
+                next = find_module(con->next[i]);
+                if (next != NULL && next->type == CONJUNCTION) {
+                    size_t* count = &next->module.conjunction.input_count;
+                    next->module.conjunction.inputs[*count] = con->name;
+                    *count += 1;
+                }
+            }
+            break;
+        }
+    }
+
+    module_t* begin = find_module("broadcaster");
+    size_t count = 1;
+
+    while (true) {
+        if (count % 1000 == 0) {
+            printf("%zu\n", count);
+        }
+
+        size_t num_low = 0;
+        size_t num_high = 0;
+
+        send_signal(begin, LOW, &num_low, &num_high, true);
+
+        // printf("%zu, %zu\n", num_low, num_high);
+
+        if (num_low == 1) {
+            return count;
+        }
+
+        count++;
     }
 
     return 0;

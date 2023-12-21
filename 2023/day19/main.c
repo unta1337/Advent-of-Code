@@ -122,6 +122,13 @@ void dfs(size_t rule_index, size_t depth, elem_t* rules, size_t rule_count) {
             printf("m (%zu, %zu)\n", lookup_lower['m'], lookup_upper['m']);
             printf("a (%zu, %zu)\n", lookup_lower['a'], lookup_upper['a']);
             printf("s (%zu, %zu)\n", lookup_lower['s'], lookup_upper['s']);
+
+            size_t x = lookup_upper['x'] - lookup_lower['x'] + 1;
+            size_t m = lookup_upper['m'] - lookup_lower['m'] + 1;
+            size_t a = lookup_upper['a'] - lookup_lower['a'] + 1;
+            size_t s = lookup_upper['s'] - lookup_lower['s'] + 1;
+
+            printf("%zu\n", x * m * a * s);
         }
 
         return;
@@ -158,9 +165,9 @@ void dfs(size_t rule_index, size_t depth, elem_t* rules, size_t rule_count) {
         if (crit->kind != '\0' && crit->kind != 'A' && crit->kind != 'R') {
             // printf("<%c %zu %zu> -> ", crit->kind, lookup_lower[crit->kind], lookup_upper[crit->kind]);
             if (crit->less) {
-                lookup_upper[crit->kind] = MIN(lookup_upper[crit->kind], crit->value - 1);
+                lookup_upper[crit->kind] = MIN(lookup_upper[crit->kind], crit->value);
             } else {
-                lookup_lower[crit->kind] = MAX(lookup_lower[crit->kind], crit->value + 1);
+                lookup_lower[crit->kind] = MAX(lookup_lower[crit->kind], crit->value);
             }
             // printf("<%c %zu %zu>\n", crit->kind, lookup_lower[crit->kind], lookup_upper[crit->kind]);
         }
