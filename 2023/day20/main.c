@@ -193,7 +193,7 @@ void update_inputs(module_t* module, char* name, pulse_t signal) {
     }
 }
 
-void send_signal(module_t* begin, pulse_t signal, size_t* num_low, size_t* num_high, bool count_only_end) {
+void send_signal(module_t* begin, pulse_t signal, size_t* num_low, size_t* num_high, bool count_only_end, size_t count) {
     module_queue_t q = { 0, };
     queue_push(&q, (module_frame_t){ .from = "broadercaster", .module = begin, .signal = signal });
 
@@ -245,6 +245,10 @@ void send_signal(module_t* begin, pulse_t signal, size_t* num_low, size_t* num_h
             }
             break;
         case CONJUNCTION:
+            if (strcmp(con->name, "dd") == 0 && signal == HIGH) {
+                printf("%s: %d: %zu\n", prev_name, signal, count);
+            }
+
             update_inputs(module, prev_name, signal);
 
             for (size_t i = 0; i < con->input_count; i++) {
@@ -343,7 +347,7 @@ size_t part_one(string_t* lines, size_t len_lines) {
     size_t num_high = 0;
 
     for (size_t i = 0; i < 1000; i++) {
-        send_signal(begin, LOW, &num_low, &num_high, false);
+        send_signal(begin, LOW, &num_low, &num_high, false, i);
     }
 
     size_t answer = num_low * num_high;
@@ -432,18 +436,14 @@ size_t part_two(string_t* lines, size_t len_lines) {
     size_t count = 1;
 
     while (true) {
-        if (count % 1000 == 0) {
-            printf("%zu\n", count);
-        }
-
         size_t num_low = 0;
         size_t num_high = 0;
 
-        send_signal(begin, LOW, &num_low, &num_high, true);
+        send_signal(begin, LOW, &num_low, &num_high, true, count);
 
         // printf("%zu, %zu\n", num_low, num_high);
 
-        if (num_low == 1) {
+        if (num_low == 1 && num_high == 0) {
             return count;
         }
 
