@@ -13,6 +13,8 @@
 
 #define LEN_SUPPORT 20
 
+#define LEN_QUEUE 1000
+
 typedef struct {
     char* str;
     size_t len;
@@ -25,7 +27,7 @@ typedef struct {
 } pos_t;
 
 typedef struct brick_t {
-    char name;
+    size_t index;
 
     pos_t begin;
     pos_t end;
@@ -57,7 +59,7 @@ size_t part_one(string_t* lines, size_t len_lines) {
 
     for (size_t i = 0; i < len_lines; i++) {
         brick_t* brick = &bricks[brick_count++];
-        brick->name = brick_count - 1 + 'A';
+        brick->index = brick_count - 1;
 
         char* begin_str = strtok(lines[i].str, "~");
         char* end_str = strtok(NULL, "~");
@@ -132,11 +134,115 @@ size_t part_one(string_t* lines, size_t len_lines) {
 }
 
 size_t part_two(string_t* lines, size_t len_lines) {
+    brick_t bricks[LEN_LINES] = { 0, };
+    size_t brick_count = 0;
+
     for (size_t i = 0; i < len_lines; i++) {
-        printf("%4zu: \"%s\" (%zu)\n", i, lines[i].str, lines[i].len);
+        brick_t* brick = &bricks[brick_count++];
+        brick->index = brick_count - 1;
+
+        char* begin_str = strtok(lines[i].str, "~");
+        char* end_str = strtok(NULL, "~");
+
+        char* x_str = strtok(begin_str, ",");
+        char* y_str = strtok(NULL, ",");
+        char* z_str = strtok(NULL, ",");
+
+        brick->begin.x = strtoll(x_str, NULL, 10);
+        brick->begin.y = strtoll(y_str, NULL, 10);
+        brick->begin.z = strtoll(z_str, NULL, 10);
+
+        x_str = strtok(end_str, ",");
+        y_str = strtok(NULL, ",");
+        z_str = strtok(NULL, ",");
+
+        brick->end.x = strtoll(x_str, NULL, 10);
+        brick->end.y = strtoll(y_str, NULL, 10);
+        brick->end.z = strtoll(z_str, NULL, 10);
+
+        assert(brick->begin.x <= brick->end.x);
+        assert(brick->begin.y <= brick->end.y);
+        assert(brick->begin.z <= brick->end.z);
     }
 
-    return 0;
+    qsort(bricks, brick_count, sizeof(brick_t), comp_z);
+
+    for (size_t i = 0; i < brick_count; i++) {
+        brick_t* ths = &bricks[i];
+        size_t floor = 1;
+
+        for (size_t j = 0; j < i; j++) {
+            brick_t* other = &bricks[j];
+
+            if (is_overlap(ths, other)) {
+                floor = MAX(floor, other->end.z + 1);
+            }
+        }
+
+        size_t fall_dist = ths->begin.z - floor;
+        ths->begin.z -= fall_dist;
+        ths->end.z -= fall_dist;
+    }
+
+    qsort(bricks, brick_count, sizeof(brick_t), comp_z);
+
+    for (size_t i = 0; i < brick_count; i++) {
+        brick_t* ths = &bricks[i];
+        for (size_t j = i + 1; j < brick_count; j++) {
+            brick_t* other = &bricks[j];
+
+            if (is_overlap(ths, other) && other->begin.z - ths->end.z == 1) {
+                ths->supports[ths->support_count++] = other;
+                other->supported_by[other->supported_count++] = ths;
+            }
+        }
+    }
+
+    size_t answer = 0;
+    for (size_t i = 0; i < brick_count; i++) {
+        brick_t* q[LEN_QUEUE] = { 0, };
+        size_t q_begin = 0;
+        size_t q_size = 0;
+
+        q[(q_begin + q_size++) % LEN_QUEUE] = &bricks[i];
+
+        bool fallen[LEN_LINES] = { 0, };
+
+        while (q_size > 0) {
+            brick_t* brick = q[q_begin];
+            q_begin += 1;
+            q_begin %= LEN_QUEUE;
+            q_size -= 1;
+
+            if (fallen[brick->index]) {
+                continue;
+            }
+            fallen[brick->index] = true;
+
+            for (size_t j = 0; j < brick->support_count; j++) {
+                brick_t* temp = brick->supports[j];
+                bool should_check = true;
+
+                for (size_t k = 0; k < temp->supported_count; k++) {
+                    should_check &= fallen[temp->supported_by[k]->index];
+                }
+
+                if (should_check) {
+                    q[(q_begin + q_size++) % LEN_QUEUE] = temp;
+                }
+            }
+        }
+
+        size_t res = 0;
+        for (size_t i = 0; i < LEN_LINES; i++) {
+            res += fallen[i];
+        }
+        res--;
+
+        answer += res;
+    }
+
+    return answer;
 }
 
 void solve(const char* input_path) {
