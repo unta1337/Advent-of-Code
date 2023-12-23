@@ -38,7 +38,7 @@ typedef struct {
 
 typedef struct {
     pos_t pos;
-    size_t steps;
+    size_t steps_left;
 } frame_t;
 
 typedef struct {
@@ -75,41 +75,40 @@ size_t queue_count(queue_t* queue) {
 
 size_t bfs(string_t* lines, size_t len_lines, pos_t begin, size_t step_limit) {
     queue_t q = { 0, };
-    queue_push(&q, (frame_t){ .pos = begin, .steps = 1 });
+    queue_push(&q, (frame_t){ .pos = begin, .steps_left = step_limit });
 
-    size_t visited[LEN_LINES][LEN_LINES] = { 0, };
+    bool visited[LEN_LINES][LEN_LINES] = { 0, };
+    size_t ret = 0;
 
     while (queue_count(&q) > 0) {
         frame_t curr = queue_front(&q);
         queue_pop(&q);
 
         pos_t pos = curr.pos;
-        size_t steps = curr.steps;
+        size_t steps_left = curr.steps_left;
 
         if (pos.row >= len_lines || pos.col >= lines[0].len) {
             continue;
         } else if (lines[pos.row].str[pos.col] == '#') {
             continue;
-        } else if (steps > step_limit + 1) {
-            continue;
-        } else if (visited[pos.row][pos.col] == steps) {
+        } else if (visited[pos.row][pos.col]) {
             continue;
         }
-        visited[pos.row][pos.col] = steps;
+        visited[pos.row][pos.col] = true;
+
+        if (steps_left % 2 == 0) {
+            ret++;
+        }
+        if (steps_left == 0) {
+            continue;
+        }
 
         for (size_t i = 0; i < 4; i++) {
             pos_t next = pos;
             next.row += dirs[i][0];
             next.col += dirs[i][1];
 
-            queue_push(&q, (frame_t){ .pos = next, .steps = steps + 1 });
-        }
-    }
-
-    size_t ret = 0;
-    for (size_t i = 0; i < len_lines; i++) {
-        for (size_t j = 0; j < lines[i].len; j++) {
-            ret += visited[i][j] == step_limit + 1;
+            queue_push(&q, (frame_t){ .pos = next, .steps_left = steps_left - 1 });
         }
     }
 
