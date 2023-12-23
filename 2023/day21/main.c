@@ -1,8 +1,11 @@
+// This not working with sample data anymore.
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
 #include <errno.h>
+#include <math.h>
 
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
@@ -178,19 +181,61 @@ int part_one(string_t* lines, int len_lines) {
     return answer;
 }
 
-int part_two(string_t* lines, int len_lines) {
-    pos_t begin = { 0, };
+size_t part_two(string_t* lines, int len_lines) {
+    size_t size = len_lines;
+    size_t steps = 26501365;
+    size_t radius = steps / size;
 
-    for (int i = 0; i < len_lines; i++) {
-        for (int j = 0; j < lines[i].len; j++) {
-            if (lines[i].str[j] == 'S') {
-                begin.row = i;
-                begin.col = j;
-            }
-        }
-    }
+    size_t right_corner = bfs(lines, len_lines,
+                           (pos_t){ .row = size / 2, .col = 0 },
+                           steps - (size / 2 + 1) - ((radius - 1) * size));
+    size_t left_corner = bfs(lines, len_lines,
+                          (pos_t){ .row = size / 2, .col = size - 1 },
+                          steps - (size / 2 + 1) - ((radius - 1) * size));
+    size_t top_corner = bfs(lines, len_lines,
+                         (pos_t){ .row = size - 1, .col = size / 2 },
+                         steps - (size / 2 + 1) - ((radius - 1) * size));
+    size_t bottom_corner = bfs(lines, len_lines,
+                          (pos_t){ .row = 0, .col = size / 2 },
+                          steps - (size / 2 + 1) - ((radius - 1) * size));
 
-    int answer = bfs_wrap(lines, len_lines, begin, 64);
+    size_t edge_top_right_out = bfs(lines, len_lines,
+                                 (pos_t){ .row = size - 1, .col = 0 },
+                                 steps - ((radius - 1) * size) - 2 * (size / 2 + 1));
+    size_t edge_top_left_out = bfs(lines, len_lines,
+                                (pos_t){ .row = size - 1, .col = size - 1 },
+                                steps - ((radius - 1) * size) - 2 * (size / 2 + 1));
+    size_t edge_bottom_right_out = bfs(lines, len_lines,
+                                   (pos_t){ .row = 0, .col = 0 },
+                                    steps - ((radius - 1) * size) - 2 * (size / 2 + 1));
+    size_t edge_bottom_left_out = bfs(lines, len_lines,
+                                   (pos_t){ .row = 0, .col = size - 1 },
+                                   steps - ((radius - 1) * size) - 2 * (size / 2 + 1));
+    size_t edge_top_right_in = bfs(lines, len_lines,
+                                 (pos_t){ .row = size - 1, .col = 0 },
+                                 steps - ((radius - 2) * size) - 2 * (size / 2 + 1));
+    size_t edge_top_left_in = bfs(lines, len_lines,
+                                (pos_t){ .row = size - 1, .col = size - 1 },
+                                steps - ((radius - 2) * size) - 2 * (size / 2 + 1));
+    size_t edge_bottom_right_in = bfs(lines, len_lines,
+                                   (pos_t){ .row = 0, .col = 0 },
+                                    steps - ((radius - 2) * size) - 2 * (size / 2 + 1));
+    size_t edge_bottom_left_in = bfs(lines, len_lines,
+                                   (pos_t){ .row = 0, .col = size - 1 },
+                                   steps - ((radius - 2) * size) - 2 * (size / 2 + 1));
+
+    size_t odd_blocks = bfs(lines, len_lines,
+                         (pos_t){ .row = 0, .col = 0 },
+                         2 * size + 2023);
+    size_t even_blocks = bfs(lines, len_lines,
+                          (pos_t){ .row = 0, .col = 0 },
+                          2 * size + 2024);
+
+    size_t answer = right_corner + left_corner + top_corner + bottom_corner;
+    answer += odd_blocks * (size_t)pow(radius - 1, 2);
+    answer += even_blocks * (size_t)pow(radius, 2);
+    answer += (edge_top_right_out + edge_top_left_out + edge_bottom_right_out + edge_bottom_left_out) * radius;
+    answer += (edge_top_right_in + edge_top_left_in + edge_bottom_right_in + edge_bottom_left_in) * (radius - 1);
 
     return answer;
 }
@@ -220,7 +265,7 @@ void solve(const char* input_path) {
 #ifndef PART_TWO
     printf("%d\n", part_one(lines, line_count));
 #else
-    printf("%d\n", part_two(lines, line_count));
+    printf("%zu\n", part_two(lines, line_count));
 #endif
 
     fclose(fp);
