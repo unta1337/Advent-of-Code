@@ -87,7 +87,53 @@ int bfs(string_t* lines, int len_lines, pos_t begin, int step_limit) {
         pos_t pos = curr.pos;
         int steps_left = curr.steps_left;
 
-        if (pos.row >= len_lines || pos.col >= lines[0].len) {
+        if (pos.row < 0 || pos.col < 0) {
+            continue;
+        } else if (pos.row >= len_lines || pos.col >= lines[0].len) {
+            continue;
+        } else if (lines[pos.row].str[pos.col] == '#') {
+            continue;
+        } else if (visited[pos.row][pos.col]) {
+            continue;
+        }
+        visited[pos.row][pos.col] = true;
+
+        if (steps_left % 2 == 0) {
+            ret++;
+        }
+        if (steps_left == 0) {
+            continue;
+        }
+
+        for (int i = 0; i < 4; i++) {
+            pos_t next = pos;
+            next.row += dirs[i][0];
+            next.col += dirs[i][1];
+
+            queue_push(&q, (frame_t){ .pos = next, .steps_left = steps_left - 1 });
+        }
+    }
+
+    return ret;
+}
+
+int bfs_wrap(string_t* lines, int len_lines, pos_t begin, int step_limit) {
+    queue_t q = { 0, };
+    queue_push(&q, (frame_t){ .pos = begin, .steps_left = step_limit });
+
+    bool visited[LEN_LINES][LEN_LINES] = { 0, };
+    int ret = 0;
+
+    while (queue_count(&q) > 0) {
+        frame_t curr = queue_front(&q);
+        queue_pop(&q);
+
+        pos_t pos = curr.pos;
+        int steps_left = curr.steps_left;
+
+        if (pos.row < 0 || pos.col < 0) {
+            continue;
+        } else if (pos.row >= len_lines || pos.col >= lines[0].len) {
             continue;
         } else if (lines[pos.row].str[pos.col] == '#') {
             continue;
@@ -133,11 +179,20 @@ int part_one(string_t* lines, int len_lines) {
 }
 
 int part_two(string_t* lines, int len_lines) {
+    pos_t begin = { 0, };
+
     for (int i = 0; i < len_lines; i++) {
-        printf("%4d: \"%s\" (%d)\n", i, lines[i].str, lines[i].len);
+        for (int j = 0; j < lines[i].len; j++) {
+            if (lines[i].str[j] == 'S') {
+                begin.row = i;
+                begin.col = j;
+            }
+        }
     }
 
-    return 0;
+    int answer = bfs_wrap(lines, len_lines, begin, 64);
+
+    return answer;
 }
 
 void solve(const char* input_path) {
