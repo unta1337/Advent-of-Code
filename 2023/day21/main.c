@@ -14,7 +14,7 @@
 
 typedef struct {
     char* str;
-    size_t len;
+    int len;
 } string_t;
 
 typedef enum {
@@ -32,19 +32,19 @@ int dirs[][2] = {
 };
 
 typedef struct {
-    size_t row;
-    size_t col;
+    int row;
+    int col;
 } pos_t;
 
 typedef struct {
     pos_t pos;
-    size_t steps_left;
+    int steps_left;
 } frame_t;
 
 typedef struct {
     frame_t frames[LEN_QUEUE];
-    size_t begin;
-    size_t end;
+    int begin;
+    int end;
 } queue_t;
 
 void queue_push(queue_t* queue, frame_t frame) {
@@ -62,9 +62,9 @@ frame_t queue_front(queue_t* queue) {
     return queue->frames[queue->begin];
 }
 
-size_t queue_count(queue_t* queue) {
-    size_t begin = queue->begin;
-    size_t end = queue->end;
+int queue_count(queue_t* queue) {
+    int begin = queue->begin;
+    int end = queue->end;
 
     if (begin > end) {
         end += LEN_QUEUE;
@@ -73,19 +73,19 @@ size_t queue_count(queue_t* queue) {
     return end - begin;
 }
 
-size_t bfs(string_t* lines, size_t len_lines, pos_t begin, size_t step_limit) {
+int bfs(string_t* lines, int len_lines, pos_t begin, int step_limit) {
     queue_t q = { 0, };
     queue_push(&q, (frame_t){ .pos = begin, .steps_left = step_limit });
 
     bool visited[LEN_LINES][LEN_LINES] = { 0, };
-    size_t ret = 0;
+    int ret = 0;
 
     while (queue_count(&q) > 0) {
         frame_t curr = queue_front(&q);
         queue_pop(&q);
 
         pos_t pos = curr.pos;
-        size_t steps_left = curr.steps_left;
+        int steps_left = curr.steps_left;
 
         if (pos.row >= len_lines || pos.col >= lines[0].len) {
             continue;
@@ -103,7 +103,7 @@ size_t bfs(string_t* lines, size_t len_lines, pos_t begin, size_t step_limit) {
             continue;
         }
 
-        for (size_t i = 0; i < 4; i++) {
+        for (int i = 0; i < 4; i++) {
             pos_t next = pos;
             next.row += dirs[i][0];
             next.col += dirs[i][1];
@@ -115,11 +115,11 @@ size_t bfs(string_t* lines, size_t len_lines, pos_t begin, size_t step_limit) {
     return ret;
 }
 
-size_t part_one(string_t* lines, size_t len_lines) {
+int part_one(string_t* lines, int len_lines) {
     pos_t begin = { 0, };
 
-    for (size_t i = 0; i < len_lines; i++) {
-        for (size_t j = 0; j < lines[i].len; j++) {
+    for (int i = 0; i < len_lines; i++) {
+        for (int j = 0; j < lines[i].len; j++) {
             if (lines[i].str[j] == 'S') {
                 begin.row = i;
                 begin.col = j;
@@ -127,14 +127,14 @@ size_t part_one(string_t* lines, size_t len_lines) {
         }
     }
 
-    size_t answer = bfs(lines, len_lines, begin, 64);
+    int answer = bfs(lines, len_lines, begin, 64);
 
     return answer;
 }
 
-size_t part_two(string_t* lines, size_t len_lines) {
-    for (size_t i = 0; i < len_lines; i++) {
-        printf("%4zu: \"%s\" (%zu)\n", i, lines[i].str, lines[i].len);
+int part_two(string_t* lines, int len_lines) {
+    for (int i = 0; i < len_lines; i++) {
+        printf("%4d: \"%s\" (%d)\n", i, lines[i].str, lines[i].len);
     }
 
     return 0;
@@ -149,10 +149,10 @@ void solve(const char* input_path) {
     }
 
     string_t lines[LEN_LINES] = { 0, };
-    for (size_t i = 0; i < LEN_LINES; i++) {
+    for (int i = 0; i < LEN_LINES; i++) {
         lines[i].str = (char*)calloc(LEN_LINE, sizeof(char));
     }
-    size_t line_count = 0;
+    int line_count = 0;
 
     // load input file into buffer line-by-line.
     for (line_count = 0; fgets(lines[line_count].str, LEN_LINE, fp) != NULL; line_count++) {
@@ -163,9 +163,9 @@ void solve(const char* input_path) {
 
     // print answer.
 #ifndef PART_TWO
-    printf("%zu\n", part_one(lines, line_count));
+    printf("%d\n", part_one(lines, line_count));
 #else
-    printf("%zu\n", part_two(lines, line_count));
+    printf("%d\n", part_two(lines, line_count));
 #endif
 
     fclose(fp);
