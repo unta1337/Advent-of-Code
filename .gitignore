@@ -1,7 +1,10 @@
 *
 !*.*
 !*/
-!Makefile
+
+*.exe
 *.txt
+token
+
+!Makefile
 !genday
-config

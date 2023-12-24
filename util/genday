@@ -2,9 +2,6 @@
 
 set -e
 
-# Your session token here
-token=''
-
 if [ $# -lt 3 ]; then
     echo 'Usage:'
     echo '    genday <year> <day> <language>'
@@ -18,6 +15,11 @@ language=$3
 
 base_dir=$(dirname $0)
 dir=$(printf day%02d $day)
+
+token=''
+if [ -f $base_dir/token ]; then
+    token=$(cat $base_dir/token)
+fi
 
 echo '~~~~ Generate Day of Advent of Code ~~~~'
 echo 'Year:     '$year
