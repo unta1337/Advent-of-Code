@@ -1,18 +1,38 @@
 #!/bin/bash
 
-if [ $# -ne 2 ]; then
-    echo "Usage:"
-    echo "    genday <language> <day>"
+set -e
+
+# Your session token here
+token=''
+
+if [ $# -lt 3 ]; then
+    echo 'Usage:'
+    echo '    genday <year> <day> <language>'
 
     exit 1
 fi
 
-base_dir=$(dirname $0)
-language=$1
+year=$1
 day=$2
+language=$3
 
+base_dir=$(dirname $0)
 dir=$(printf day%02d $day)
 
+echo '~~~~ Generate Day of Advent of Code ~~~~'
+echo 'Year:     '$year
+echo 'Day:      '$day
+echo 'Language: '$language
+echo ''
+
 mkdir -p $dir
-cp -r $base_dir/base/$1/* ./$dir
-touch $dir/sample.txt $dir/input.txt
+cp -r $base_dir/base/$language/* ./$dir
+
+if [ -z $token ]; then
+    echo 'No token provided'
+    echo 'Skip download input'
+else
+    echo 'Download input...'
+    curl -s -o ./$dir/input.txt https://adventofcode.com/$year/day/$day/input --cookie session=$token
+    echo 'Done!'
+fi
