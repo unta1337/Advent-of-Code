@@ -1,7 +1,10 @@
+// This not work with the samples.
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <math.h>
 
 #define LEN_LINES 2000
 #define LEN_LINE 2000
@@ -12,9 +15,9 @@ typedef struct {
 } string_t;
 
 typedef struct {
-    double x;
-    double y;
-    double z;
+    long double x;
+    long double y;
+    long double z;
 } vec_t;
 
 void trim_left(char** str) {
@@ -40,17 +43,27 @@ typedef struct {
     vec_t vel;
 } hail_t;
 
-vec_t get_intersection(hail_t* p, hail_t* q) {
-    double m1 = p->vel.y / p->vel.x;
-    double a1 = p->pos.x;
-    double b1 = p->pos.y;
+vec_t get_intersection(hail_t* p, hail_t* q, long double* t1, long double* t2) {
+    long double m1 = p->vel.y / p->vel.x;
+    long double a1 = p->pos.x;
+    long double b1 = p->pos.y;
 
-    double m2 = q->vel.y / q->vel.x;
-    double a2 = q->pos.x;
-    double b2 = q->pos.y;
+    long double m2 = q->vel.y / q->vel.x;
+    long double a2 = q->pos.x;
+    long double b2 = q->pos.y;
 
-    double x = (m1 * a1- b1 - (m2 * a2 - b2)) / (m1 - m2);
-    double y = m1 * x - m1 * a1 + b1;
+    long double x = (m1 * a1 - b1 - (m2 * a2 - b2)) / (m1 - m2);
+    long double y = m1 * x - m1 * a1 + b1;
+
+    long double __t1 = (x - a1) / p->vel.x;
+    long double __t2 = (x - a2) / q->vel.x;
+
+    if (t1 != NULL) {
+        *t1 = __t1;
+    }
+    if (t2 != NULL) {
+        *t2 = __t2;
+    }
 
     return (vec_t){
         .x = x,
@@ -80,9 +93,9 @@ size_t part_one(string_t* lines, size_t len_lines) {
         trim(&y_str);
         trim(&z_str);
 
-        hail->pos.x = strtod(x_str, NULL);
-        hail->pos.y = strtod(y_str, NULL);
-        hail->pos.z = strtod(z_str, NULL);
+        hail->pos.x = strtold(x_str, NULL);
+        hail->pos.y = strtold(y_str, NULL);
+        hail->pos.z = strtold(z_str, NULL);
 
         x_str = strtok(vel_str, ",");
         y_str = strtok(NULL, ",");
@@ -92,29 +105,34 @@ size_t part_one(string_t* lines, size_t len_lines) {
         trim(&y_str);
         trim(&z_str);
 
-        hail->vel.x = strtod(x_str, NULL);
-        hail->vel.y = strtod(y_str, NULL);
-        hail->vel.z = strtod(z_str, NULL);
+        hail->vel.x = strtold(x_str, NULL);
+        hail->vel.y = strtold(y_str, NULL);
+        hail->vel.z = strtold(z_str, NULL);
     }
 
+    size_t answer = 0;
     for (size_t i = 0; i < hail_count; i++) {
         hail_t* ths = &hails[i];
 
         for (size_t j = i + 1; j < hail_count; j++) {
             hail_t* other = &hails[j];
 
-            vec_t inter = get_intersection(ths, other);
+            long double t1 = 0.0;
+            long double t2 = 0.0;
+            vec_t inter = get_intersection(ths, other, &t1, &t2);
+            
+            long double begin = 200000000000000.0;
+            long double end = 400000000000000.0;
 
-            printf("A: %lf, %lf, %lf @ %lf, %lf, %lf\n", ths->pos.x, ths->pos.y, ths->pos.z,
-                                                         ths->vel.x, ths->vel.y, ths->vel.z);
-            printf("B: %lf, %lf, %lf @ %lf, %lf, %lf\n", other->pos.x, other->pos.y, other->pos.z,
-                                                         other->vel.x, other->vel.y, other->vel.z);
-            printf("I: %lf, %lf, %lf\n", inter.x, inter.y, inter.z);
-            printf("\n");
+            if (t1 > 0 && t2 > 0) {
+                if (begin <= inter.x && inter.x <= end && begin <= inter.y && inter.y <= end) {
+                    answer++;
+                }
+            }
         }
     }
 
-    return 0;
+    return answer;
 }
 
 size_t part_two(string_t* lines, size_t len_lines) {
