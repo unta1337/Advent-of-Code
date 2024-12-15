@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-$sample = true
+$sample = false
 
 input_file = $sample ? "sample.txt" : "input.txt"
 input = File.open(input_file, "r").map(&:strip)
@@ -38,9 +38,8 @@ puts part1
 puts
 
 # Part 2
-part2 = 0
-
-(0...0).each do |t|
+puts "== Part 2 =="
+(0...).each do |t|
   if $sample
     canvas = Array.new(7) { Array.new(11, ".") }
   else
@@ -55,11 +54,9 @@ part2 = 0
     end
   end
 
-  canvas.each do |row|
-    puts row.join
+  if canvas.any? { |row| row.join.include?("##########") }
+    puts canvas.map(&:join).join("\n")
+    puts t
+    break
   end
-  puts
 end
-
-puts "== Part 2 =="
-puts part2
