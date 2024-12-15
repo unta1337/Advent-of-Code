@@ -1,12 +1,11 @@
 #!/usr/bin/env ruby
 
-$sample = false
+$sample = true
 input_path = $sample ? "sample.txt" : "input.txt"
 
 input = File.open(input_path, "r").map(&:strip)
 field = input[...input.index("")]
 moves = input[input.index("")...].join.chars
-orig = (0...field.size).to_a.product((0...field[0].size).to_a).find { |r, c| field[r][c] == "@" }
 
 $dirs = {
   "^" => [-1, 0],
@@ -17,7 +16,7 @@ $dirs = {
 
 class Array
   def deep_clone
-    self.map { |e| e.class == Array ? e.clone : e }
+    self.map { |e| e.class == Array || e.class == String ? e.clone : e }
   end
 end
 
@@ -45,8 +44,8 @@ def move_box(field, row, col, dir)
 end
 
 # Part 1
-pos = orig.clone
 f = field.deep_clone
+pos = (0...f.size).to_a.product((0...f[0].size).to_a).find { |r, c| f[r][c] == "@" }
 
 moves.each do |move|
   move_pos = find_loc(f, *pos, move)
@@ -64,6 +63,12 @@ puts part1
 puts
 
 # Part 2
+f = field.map { |row| row.chars.map { |cell| cell == "O" ? "[]" : cell == "@" ? "@." : cell * 2 }.join }
+pos = (0...f.size).to_a.product((0...f[0].size).to_a).find { |r, c| f[r][c] == "@" }
+
+puts f.join("\n")
+puts "#{pos}"
+
 part2 = 0
 
 puts "== Part 2 =="
