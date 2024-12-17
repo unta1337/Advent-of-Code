@@ -131,19 +131,20 @@ part2 = Set.new
 q = PriorityQueue.new { |p, q| p[2] <=> q[2] }
 lookup = Hash.new
 
-q.push [*src, 1, 0]
+q.push [*src, 1, 0, [src]]
 lookup[[*src, 1]] = 0
 
 while !q.empty?
-  row, col, dir, cost = q.pop
+  row, col, dir, cost, path = q.pop
   if !lookup[[row, col, dir]].nil? && lookup[[row, col, dir]] < cost
     next
   end
 
+  path.push [row, col]
+
   if [row, col] == dest
-    puts cost
     if cost == part1
-      puts "hi"
+      part2 += path.to_set
     end
     next
   end
@@ -158,12 +159,13 @@ while !q.empty?
     end
     nr, nc = row + dr, col + dc
 
-    if input[nr][nc] != "#" && (lookup[[nr, nc, nd]].nil? || ns < lookup[[nr, nc, nd]])
-      q.push [nr, nc, nd, ns]
+    if input[nr][nc] != "#" && (lookup[[nr, nc, nd]].nil? || ns <= lookup[[nr, nc, nd]])
+      q.push [nr, nc, nd, ns, path.clone]
       lookup[[nr, nc, nd]] = ns
     end
   end
 end
+part2 = part2.size
 
 puts "== Part 2 =="
 puts part2
