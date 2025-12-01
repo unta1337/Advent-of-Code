@@ -86,10 +86,31 @@ puts part1
 puts
 
 # Part 2
+#
+# |Combo Operands|     |Operators|
+#  0-3: Literal         0 adv: A = A / 2^COM
+#  4: reg A             1 bxl: B = B ^ LIT
+#  5: reg B             2 bst: B = COM % 8
+#  6: reg C             3 jnz: if A != 0 { jmp LIT }
+#  7: None              4 bxc: B = B ^ C
+#                       5 out: puts (COM % 8)
+#                       6 bdv: B = A / 2^COM
+#                       7 cdv: C = A / 2^COM
+# 
+# Program: 2,4,1,5,7,5,1,6,4,2,5,5,0,3,3,0
+# Program: bst 4      ; B = A & 0b111
+#          bxl 5      ; B = B ^ 0b101
+#          cdv 5      ; C = A >> B
+#          bxl 6      ; B = B ^ 0b110
+#          bxc 2      ; B = B ^ C
+#          out 5      ; puts (B & 0b111)
+#          adv 3      ; A >> 3
+#          jnz 0
+
 part2 = 0
 prog_str = $prog.join(",")
 
-(0...200000).each do |reg_a|
+def run_program(input, reg_a)
   $regs = [
     reg_a,
     input[1].split(":")[-1].to_i,
@@ -146,13 +167,45 @@ prog_str = $prog.join(",")
       },
     ][op].call
   end
-  out = out.join(",")
-
-  if out == prog_str
-    part2 = reg_a
-    break
-  end
+  out
 end
+
+def run_program_optimized(reg_a)
+  x = reg_a
+  out = []
+  while true
+    d = ((((x & 0b111) ^ 0b101) ^ 0b110) ^ (x >> ((x & 0b111) ^ 0b101))) & 0b111
+    out.append d
+    x = x / 0b1000
+
+    if x == 0
+      break
+    end
+  end
+  out
+end
+
+def search(chunk, chunk_count, target, target_index)
+  if target_index < 0
+    return chunk
+  end
+
+  ret = nil
+  (0b000..0b111).each do |c|
+    next_chunk = (chunk << 3) | c
+    prog_res = run_program_optimized(next_chunk)
+    if prog_res[0] == target[target_index]
+      res = search(next_chunk, chunk_count + 1, target, target_index - 1)
+      if !res.nil?
+        return res
+      end
+    end
+  end
+
+  ret
+end
+
+part2 = search(0, 0, $prog, $prog.size - 1)
 
 puts "== Part 2 =="
 puts part2
