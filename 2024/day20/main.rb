@@ -97,5 +97,25 @@ puts
 # Part 2
 part2 = 0
 
+(0...rows).each do |row|
+  (0...cols).each do |col|
+    if lookup[row][col] < Float::INFINITY
+      (0..20).each do |cheat_len|
+        (0..cheat_len).each do |dr|
+          dc = cheat_len - dr
+          [[row + dr, col + dc], [row + dr, col - dc], [row - dr, col + dc], [row - dr, col - dc]].uniq.each do |nr, nc|
+            if nr.between?(0, rows - 1) && nc.between?(0, cols - 1) && input[nr][nc] != '#'
+              diff = lookup[nr][nc] - (lookup[row][col] + cheat_len)
+              if diff >= 100
+                part2 += 1
+              end
+            end
+          end
+        end
+      end
+    end
+  end
+end
+
 puts "== Part 2 =="
 puts part2
