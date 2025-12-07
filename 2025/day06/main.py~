@@ -1,0 +1,20 @@
+def part1(input_str):
+    ans = 0
+
+    return ans
+
+def part2(input_str):
+    ans = 0
+
+    return ans
+
+if __name__ == '__main__':
+    input_str = []
+    while True:
+        try:
+            input_str.append(input())
+        except:
+            break
+
+    print(f'Part 1: {part1(input_str)}')
+    print(f'Part 2: {part2(input_str)}')
